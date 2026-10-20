@@ -7,13 +7,12 @@ import abb.ABB;
 import abb.ResultadoBusqueda;
 import abb.comparadores.ComparadorDesplieguePorCodigo;
 
-public class ImplementacionSistema implements Sistema  {
+public class ImplementacionSistema implements Sistema {
 
     private int maxRegiones;
     private final ABB<Despliegue> desplieguesPorId = new ABB<>();
-    private final ABB<Despliegue> desplieguesPorCodigo =
-            new ABB<>(new ComparadorDesplieguePorCodigo());
-
+    private final ABB<Despliegue> desplieguesPorCodigo = new ABB<>(new ComparadorDesplieguePorCodigo());
+    private final ABB<Despliegue>[] desplieguesPorModalidad = crearArbolesPorModalidad();
 
     @Override
     public Retorno inicializarSistema(int maxRegiones) {
@@ -24,11 +23,15 @@ public class ImplementacionSistema implements Sistema  {
         this.maxRegiones = maxRegiones;
         desplieguesPorId.vaciar();
         desplieguesPorCodigo.vaciar();
+        for (ABB<Despliegue> arbol : desplieguesPorModalidad) {
+            arbol.vaciar();
+        }
         return Retorno.ok();
     }
 
     @Override
-    public Retorno registrarDespliegue(String id, String codigo, String descripcion, boolean cuantizado, Modalidad modalidad) {
+    public Retorno registrarDespliegue(String id, String codigo, String descripcion, boolean cuantizado,
+            Modalidad modalidad) {
         if (esVacio(id) || esVacio(codigo) || esVacio(descripcion) || modalidad == null) {
             return Retorno.error1("El id, código y descripción no pueden ser vacíos y la modalidad no puede ser nula");
         }
@@ -48,6 +51,7 @@ public class ImplementacionSistema implements Sistema  {
 
         desplieguesPorId.insertar(despliegue);
         desplieguesPorCodigo.insertar(despliegue);
+        desplieguesPorModalidad[modalidad.getIndice()].insertar(despliegue);
         return Retorno.ok();
     }
 
@@ -60,8 +64,7 @@ public class ImplementacionSistema implements Sistema  {
         if (esVacio(id)) {
             return Retorno.error1("El id no puede ser vacío ni nulo");
         }
-        ResultadoBusqueda<Despliegue> busqueda =
-                desplieguesPorId.buscar(new Despliegue(id, null, null, false, null));
+        ResultadoBusqueda<Despliegue> busqueda = desplieguesPorId.buscar(new Despliegue(id, null, null, false, null));
         Despliegue despliegue = busqueda.getValor();
         if (despliegue == null) {
             return Retorno.error2("No existe un despliegue con ese id");
@@ -81,17 +84,37 @@ public class ImplementacionSistema implements Sistema  {
 
     @Override
     public Retorno buscarDesplieguePorCodigo(String codigo) {
-        return Retorno.noImplementada();
+        if (esVacio(codigo)) {
+            return Retorno.error1("El código no puede ser vacío ni nulo");
+        }
+        ResultadoBusqueda<Despliegue> busqueda = desplieguesPorCodigo
+                .buscar(new Despliegue(null, codigo, null, false, null));
+        Despliegue despliegue = busqueda.getValor();
+        if (despliegue == null) {
+            return Retorno.error2("No existe un despliegue con ese código");
+        }
+        return Retorno.ok(busqueda.getVisitados(), despliegue.toString());
     }
 
     @Override
     public Retorno listarDesplieguesPorCodigoAscendente() {
-        return Retorno.noImplementada();
+        return Retorno.ok(desplieguesPorCodigo.listarAscendente());
     }
 
     @Override
     public Retorno listarDesplieguesPorModalidad(Modalidad unaModalidad) {
-        return Retorno.noImplementada();
+        if (unaModalidad == null) {
+            return Retorno.ok("");
+        }
+        return Retorno.ok(desplieguesPorModalidad[unaModalidad.getIndice()].listarAscendente());
+    }
+
+    private ABB<Despliegue>[] crearArbolesPorModalidad() {
+        ABB<Despliegue>[] arboles = new ABB[Modalidad.values().length];
+        for (int i = 0; i < Modalidad.values().length; i++) {
+            arboles[i] = new ABB<>(new ComparadorDesplieguePorCodigo());
+        }
+        return arboles;
     }
 
     @Override
