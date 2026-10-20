@@ -1,33 +1,82 @@
 package sistema;
 
+import dominio.Despliegue;
 import interfaz.*;
 
+import abb.ABB;
+import abb.ResultadoBusqueda;
+import abb.comparadores.ComparadorDesplieguePorCodigo;
+
 public class ImplementacionSistema implements Sistema  {
+
+    private int maxRegiones;
+    private final ABB<Despliegue> desplieguesPorId = new ABB<>();
+    private final ABB<Despliegue> desplieguesPorCodigo =
+            new ABB<>(new ComparadorDesplieguePorCodigo());
 
 
     @Override
     public Retorno inicializarSistema(int maxRegiones) {
-        return Retorno.noImplementada();
+        if (maxRegiones <= 3) {
+            return Retorno.error1("La cantidad máxima de regiones debe ser mayor a 3");
+        }
+
+        this.maxRegiones = maxRegiones;
+        desplieguesPorId.vaciar();
+        desplieguesPorCodigo.vaciar();
+        return Retorno.ok();
     }
 
     @Override
     public Retorno registrarDespliegue(String id, String codigo, String descripcion, boolean cuantizado, Modalidad modalidad) {
-        return Retorno.noImplementada();
+        if (esVacio(id) || esVacio(codigo) || esVacio(descripcion) || modalidad == null) {
+            return Retorno.error1("El id, código y descripción no pueden ser vacíos y la modalidad no puede ser nula");
+        }
+
+        if (!codigo.matches("^[A-Z]{3}-[0-9]{3}-[A-Za-z0-9]{4}$")) {
+            return Retorno.error2("El código no tiene un formato válido");
+        }
+
+        Despliegue despliegue = new Despliegue(id, codigo, descripcion, cuantizado, modalidad);
+        if (desplieguesPorId.pertenece(despliegue) != null) {
+            return Retorno.error3("Ya existe un despliegue con ese id");
+        }
+
+        if (desplieguesPorCodigo.pertenece(despliegue) != null) {
+            return Retorno.error4("Ya existe un despliegue con ese código");
+        }
+
+        desplieguesPorId.insertar(despliegue);
+        desplieguesPorCodigo.insertar(despliegue);
+        return Retorno.ok();
+    }
+
+    private boolean esVacio(String valor) {
+        return valor == null || valor.trim().isEmpty();
     }
 
     @Override
     public Retorno buscarDesplieguePorId(String id) {
-        return Retorno.noImplementada();
+        if (esVacio(id)) {
+            return Retorno.error1("El id no puede ser vacío ni nulo");
+        }
+        ResultadoBusqueda<Despliegue> busqueda =
+                desplieguesPorId.buscar(new Despliegue(id, null, null, false, null));
+        Despliegue despliegue = busqueda.getValor();
+        if (despliegue == null) {
+            return Retorno.error2("No existe un despliegue con ese id");
+        }
+        return Retorno.ok(busqueda.getVisitados(), despliegue.toString());
     }
 
     @Override
     public Retorno listarDesplieguesPorIdAscendente() {
-        return Retorno.noImplementada();
+        return Retorno.ok(desplieguesPorId.listarAscendente());
     }
 
     @Override
     public Retorno listarDesplieguesPorIdDescendente() {
-        return Retorno.noImplementada();
+        return Retorno.ok(desplieguesPorId.listarDescendente());
     }
 
     @Override
