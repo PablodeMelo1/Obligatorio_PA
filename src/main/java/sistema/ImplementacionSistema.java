@@ -2,7 +2,7 @@ package sistema;
 
 import dominio.Despliegue;
 import interfaz.*;
-
+import grafo.Grafo;
 import abb.ABB;
 import abb.ResultadoBusqueda;
 import abb.comparadores.ComparadorDesplieguePorCodigo;
@@ -13,7 +13,8 @@ public class ImplementacionSistema implements Sistema {
     private final ABB<Despliegue> desplieguesPorId = new ABB<>();
     private final ABB<Despliegue> desplieguesPorCodigo = new ABB<>(new ComparadorDesplieguePorCodigo());
     private final ABB<Despliegue>[] desplieguesPorModalidad = crearArbolesPorModalidad();
-
+    private Grafo grafo;
+  
     @Override
     public Retorno inicializarSistema(int maxRegiones) {
         if (maxRegiones <= 3) {
@@ -23,6 +24,7 @@ public class ImplementacionSistema implements Sistema {
         this.maxRegiones = maxRegiones;
         desplieguesPorId.vaciar();
         desplieguesPorCodigo.vaciar();
+        grafo = new Grafo(maxRegiones, false);
         for (ABB<Despliegue> arbol : desplieguesPorModalidad) {
             arbol.vaciar();
         }
