@@ -1,8 +1,10 @@
 package sistema;
 
 import dominio.Despliegue;
+import dominio.Region;
 import interfaz.*;
 import grafo.Grafo;
+import grafo.Arista;
 import abb.ABB;
 import abb.ResultadoBusqueda;
 import abb.comparadores.ComparadorDesplieguePorCodigo;
@@ -121,17 +123,59 @@ public class ImplementacionSistema implements Sistema {
 
     @Override
     public Retorno registrarRegion(String codigo, String nombre, String pais, String zona) {
-        return Retorno.noImplementada();
+        if (grafo.estaLleno()) {
+            return Retorno.error1("Se alcanzó la cantidad máxima de regiones");
+        }
+        if (esVacio(codigo) || esVacio(nombre) || esVacio(pais) || esVacio(zona)) {
+            return Retorno.error2("El código, nombre, país y zona no pueden ser vacíos ni nulos");
+        }
+        Region region = new Region(codigo, nombre, pais, zona);
+        if (grafo.existeVertice(region)) {
+            return Retorno.error3("Ya existe una región con ese código");
+        }
+        grafo.agregarVertice(region);
+        return Retorno.ok();
     }
 
     @Override
     public Retorno registrarEnlace(String codigoOrigen, String codigoDestino, int latencia, int costo) {
-        return Retorno.noImplementada();
+        if (esVacio(codigoOrigen) || esVacio(codigoDestino)) {
+            return Retorno.error1("Los códigos no pueden ser vacíos ni nulos");
+        }
+        Region origen = new Region(codigoOrigen);
+        Region destino = new Region(codigoDestino);
+        if (!grafo.existeVertice(origen)) {
+            return Retorno.error2("No existe la región de origen");
+        }
+        if (!grafo.existeVertice(destino)) {
+            return Retorno.error3("No existe la región de destino");
+        }
+        if (latencia <= 0) {
+            return Retorno.error4("La latencia debe ser mayor a cero");
+        }
+        if (costo <= 0) {
+            return Retorno.error5("El costo debe ser mayor a cero");
+        }
+        if (grafo.existeArista(origen, destino)) {
+            return Retorno.error6("Ya existe un enlace entre las regiones");
+        }
+        grafo.agregarArista(origen, destino, new Arista(latencia, costo));
+        return Retorno.ok();
     }
 
     @Override
     public Retorno redRegionesPorCantidadDeSaltos(String codigoOrigen, int cantidad) {
-        return Retorno.noImplementada();
+        if (cantidad < 0) {
+            return Retorno.error1("La cantidad de saltos no puede ser negativa");
+        }
+        if (esVacio(codigoOrigen)) {
+            return Retorno.error2("El código no puede ser vacío ni nulo");
+        }
+        Region origen = new Region(codigoOrigen);
+        if (!grafo.existeVertice(origen)) {
+            return Retorno.error3("No existe la región de origen");
+        }
+        return Retorno.ok(grafo.redRegionesPorCantidadDeSaltos(origen, cantidad));
     }
 
     @Override
