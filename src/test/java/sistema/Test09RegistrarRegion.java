@@ -36,7 +36,12 @@ public class Test09RegistrarRegion {
             assertEquals(Retorno.Resultado.ERROR_2,
                     s.registrarRegion("A", "Nombre", "UY", invalido).getResultado());
         }
-        registraHastaLaCapacidadMaxima();
+        // Los errores no ocuparon lugar: entran las 4 regiones
+        for (int i = 0; i < 4; i++) {
+            assertEquals(Retorno.ok(), s.registrarRegion("R" + i, "Region " + i, "UY", "z1"));
+        }
+        assertEquals(Retorno.Resultado.ERROR_1,
+                s.registrarRegion("R4", "Region 4", "UY", "z1").getResultado());
     }
 
     @Test
