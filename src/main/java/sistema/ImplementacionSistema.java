@@ -5,6 +5,7 @@ import dominio.Region;
 import interfaz.*;
 import grafo.Grafo;
 import grafo.Arista;
+import grafo.Tupla;
 import abb.ABB;
 import abb.ResultadoBusqueda;
 import abb.comparadores.ComparadorDesplieguePorCodigo;
@@ -180,11 +181,41 @@ public class ImplementacionSistema implements Sistema {
 
     @Override
     public Retorno rutaMenorLatencia(String codigoOrigen, String codigoDestino) {
-        return Retorno.noImplementada();
+        Retorno error = validarRuta(codigoOrigen, codigoDestino);
+        if (error != null) {
+            return error;
+        }
+        Tupla<Integer, String> ruta = grafo.rutaMenorLatencia(new Region(codigoOrigen), new Region(codigoDestino));
+        if (ruta == null) {
+            return Retorno.error4("No hay ruta entre el origen y el destino");
+        }
+        return Retorno.ok(ruta.getDato1(), ruta.getDato2());
     }
 
     @Override
     public Retorno rutaMenorCosto(String codigoOrigen, String codigoDestino) {
-        return Retorno.noImplementada();
+        Retorno error = validarRuta(codigoOrigen, codigoDestino);
+        if (error != null) {
+            return error;
+        }
+        Tupla<Integer, String> ruta = grafo.rutaMenorCosto(new Region(codigoOrigen), new Region(codigoDestino));
+        if (ruta == null) {
+            return Retorno.error4("No hay ruta entre el origen y el destino");
+        }
+        return Retorno.ok(ruta.getDato1(), ruta.getDato2());
+    }
+
+    // Errores 1, 2 y 3 comunes a los ejercicios 12 y 13. Devuelve null si todo está bien.
+    private Retorno validarRuta(String codigoOrigen, String codigoDestino) {
+        if (esVacio(codigoOrigen) || esVacio(codigoDestino)) {
+            return Retorno.error1("Los códigos no pueden ser vacíos ni nulos");
+        }
+        if (!grafo.existeVertice(new Region(codigoOrigen))) {
+            return Retorno.error2("No existe la región de origen");
+        }
+        if (!grafo.existeVertice(new Region(codigoDestino))) {
+            return Retorno.error3("No existe la región de destino");
+        }
+        return null;
     }
 }

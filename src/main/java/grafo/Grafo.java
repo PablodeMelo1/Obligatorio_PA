@@ -1,7 +1,14 @@
 package grafo;
 
+import abb.ABB;
+import cola.Cola;
+import cola.ICola;
 import dominio.Region;
 
+/**
+ * Grafo del profe: matriz de adyacencia + array de vértices.
+ * Los vértices son regiones y las aristas tienen latencia y costo.
+ */
 public class Grafo {
 
     private final int cantMaxVertices;
@@ -23,6 +30,8 @@ public class Grafo {
                 }
             }
         } else {
+            // No dirigido: [i][j] y [j][i] apuntan a la MISMA arista,
+            // así que al agregar A->B también queda B->A.
             for (int i = 0; i < cantMaxVertices; i++) {
                 for (int j = i; j < cantMaxVertices; j++) {
                     Arista arista = new Arista();
@@ -41,6 +50,7 @@ public class Grafo {
         }
     }
 
+    // Pre: existeVertice(vOrigen) && existeVertice(vDestino)
     public void agregarArista(Region vOrigen, Region vDestino, Arista a) {
         int posVOrigen = obtenerPos(vOrigen);
         int posVDestino = obtenerPos(vDestino);
@@ -68,55 +78,120 @@ public class Grafo {
         return posOrigen != -1 && posDestino != -1 && aristas[posOrigen][posDestino].isExiste();
     }
 
-    /** Recibe un origen existente y una cantidad no negativa, validados por el sistema. */
+    // Idea: bfsConTuplas del profe. Cada tupla es (posición, saltos).
+    // Solo se expanden los vecinos de quienes tienen menos de "cantidad" saltos.
+    // En vez de imprimir, cada región alcanzada se inserta en un ABB (ordena por código).
     public String redRegionesPorCantidadDeSaltos(Region origen, int cantidad) {
-        int[] distancias = new int[cantMaxVertices];
-        for (int i = 0; i < distancias.length; i++) {
-            distancias[i] = -1;
+        boolean[] visitados = new boolean[cantMaxVertices];
+        int posOrigen = obtenerPos(origen);
+        ABB<Region> alcanzadas = new ABB<>();
+
+        ICola<Tupla<Integer, Integer>> cola = new Cola<>();
+        visitados[posOrigen] = true;
+        cola.encolar(new Tupla<>(posOrigen, 0));
+        while (!cola.estaVacia()) {
+            Tupla<Integer, Integer> tuplaDesencolada = cola.desencolar();
+            int pos = tuplaDesencolada.getDato1();
+            int salto = tuplaDesencolada.getDato2();
+
+            alcanzadas.insertar(vertices[pos]);
+            if (salto < cantidad) {
+                for (int i = 0; i < aristas.length; i++) {
+                    if (aristas[pos][i].isExiste() && !visitados[i]) {
+                        visitados[i] = true;
+                        cola.encolar(new Tupla<>(i, salto + 1));
+                    }
+                }
+            }
+        }
+        return alcanzadas.listarAscendente();
+    }
+
+    // Pre: existeVertice(origen) && existeVertice(destino)
+    // Post: Tupla(latencia total, ruta) o null si no hay ruta.
+    public Tupla<Integer, String> rutaMenorLatencia(Region origen, Region destino) {
+        return dijkstra(origen, destino, true);
+    }
+
+    // Pre: existeVertice(origen) && existeVertice(destino)
+    // Post: Tupla(costo total, ruta) o null si no hay ruta.
+    public Tupla<Integer, String> rutaMenorCosto(Region origen, Region destino) {
+        return dijkstra(origen, destino, false);
+    }
+
+    /*
+     * Idea: el dijkstra del profe (visitados, costos y vengo).
+     * Es el mismo algoritmo para los dos ejercicios; lo único que cambia es
+     * qué peso de la arista se suma: la latencia o el costo.
+     * Al terminar, si el destino sigue en "infinito" no hay ruta.
+     */
+    private Tupla<Integer, String> dijkstra(Region origen, Region destino, boolean usarLatencia) {
+        int posOrigen = obtenerPos(origen);
+        int posDestino = obtenerPos(destino);
+
+        // Inicializar estructuras
+        boolean[] visitados = new boolean[cantMaxVertices];
+        int[] costos = new int[cantMaxVertices];
+        int[] vengo = new int[cantMaxVertices];
+        for (int i = 0; i < cantMaxVertices; i++) {
+            costos[i] = Integer.MAX_VALUE;
+            vengo[i] = -1;
         }
 
-        // Cola FIFO: cada vértice se encola una sola vez, al descubrirlo.
-        int[] cola = new int[cantVertices];
-        int inicio = 0;
-        int fin = 0;
-        int posOrigen = obtenerPos(origen);
-        distancias[posOrigen] = 0;
-        cola[fin++] = posOrigen;
+        // Marcar el origen con costo cero
+        costos[posOrigen] = 0;
 
-        while (inicio < fin) {
-            int actual = cola[inicio++];
-            if (distancias[actual] == cantidad) {
-                continue;
-            }
-            for (int vecino = 0; vecino < vertices.length; vecino++) {
-                if (vertices[vecino] != null && aristas[actual][vecino].isExiste()
-                        && distancias[vecino] == -1) {
-                    distancias[vecino] = distancias[actual] + 1;
-                    cola[fin++] = vecino;
+        for (int i = 0; i < cantVertices; i++) {
+            // 1) Obtener el vértice no visitado de menor costo
+            int pos = obtenerVerticeNoVisitadoDeMenorCosto(visitados, costos);
+
+            if (pos != -1) {
+                // 2) Visitarlo
+                visitados[pos] = true;
+
+                // 3) Actualizar el costo de los adyacentes NO visitados
+                for (int j = 0; j < cantMaxVertices; j++) {
+                    if (!visitados[j] && aristas[pos][j].isExiste()) {
+                        int peso = usarLatencia ? aristas[pos][j].getLatencia() : aristas[pos][j].getCosto();
+                        int nuevoCosto = costos[pos] + peso;
+                        if (nuevoCosto < costos[j]) {
+                            costos[j] = nuevoCosto;
+                            vengo[j] = pos;
+                        }
+                    }
                 }
             }
         }
 
-        // Finalizado el BFS, la cola contiene exactamente las regiones alcanzadas.
-        // Se ordenan sus índices por código mediante inserción.
-        for (int i = 1; i < fin; i++) {
-            int posicion = cola[i];
-            int j = i - 1;
-            while (j >= 0 && vertices[cola[j]].compareTo(vertices[posicion]) > 0) {
-                cola[j + 1] = cola[j];
-                j--;
-            }
-            cola[j + 1] = posicion;
+        if (costos[posDestino] == Integer.MAX_VALUE) {
+            return null;
         }
+        return new Tupla<>(costos[posDestino], armarCamino(vengo, posDestino));
+    }
 
-        StringBuilder listado = new StringBuilder();
-        for (int i = 0; i < fin; i++) {
-            if (i > 0) {
-                listado.append('|');
+    private int obtenerVerticeNoVisitadoDeMenorCosto(boolean[] visitados, int[] costos) {
+        int min = Integer.MAX_VALUE;
+        int posMin = -1;
+        for (int i = 0; i < cantMaxVertices; i++) {
+            if (!visitados[i] && costos[i] < min) {
+                min = costos[i];
+                posMin = i;
             }
-            listado.append(vertices[cola[i]]);
         }
-        return listado.toString();
+        return posMin;
+    }
+
+    /*
+     * Idea: vengo[] guarda desde dónde se llegó a cada vértice.
+     * Se recorre del destino hacia atrás hasta el origen (vengo == -1).
+     * La recursión arma primero el camino hasta el anterior y después agrega
+     * el actual, así la ruta queda en orden origen -> destino.
+     */
+    private String armarCamino(int[] vengo, int pos) {
+        if (vengo[pos] == -1) {
+            return vertices[pos].toString();
+        }
+        return armarCamino(vengo, vengo[pos]) + "|" + vertices[pos];
     }
 
     private int obtenerPos(Region v) {
